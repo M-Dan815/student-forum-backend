@@ -44,7 +44,7 @@ exports.login = async (req, res, next) => {
 		if (!isMatch) {
 			return res.status(401).json({
 				success: false,
-				message: "Invalid credentials",
+				message: "Invalid password",
 			});
 		}
 
@@ -154,4 +154,99 @@ const sendTokenResponse = (user, statusCode, res) => {
 				role: user.role,
 			},
 		});
+};
+
+exports.updateAvatar = async (req, res, next) => {
+	try {
+		const {avatar} = req.body;
+
+		const user = await User.findByIdAndUpdate(
+			req.user.id,
+			{avatar},
+			{new: true, runValidators: true}
+		);
+
+		res.status(200).json({
+			success: true,
+			data: user,
+		});
+	} catch (error) {
+		next(error);
+	}
+};
+
+// @desc    Update notification preferences
+// @route   PUT /api/auth/notifications
+// @access  Private
+exports.updateNotificationPreferences = async (req, res, next) => {
+	try {
+		const {notificationPreferences} = req.body;
+
+		const user = await User.findByIdAndUpdate(
+			req.user.id,
+			{notificationPreferences},
+			{new: true, runValidators: true}
+		);
+
+		res.status(200).json({
+			success: true,
+			data: user.notificationPreferences,
+		});
+	} catch (error) {
+		next(error);
+	}
+};
+
+// @desc    Get user's forum statistics
+// @route   GET /api/auth/stats
+// @access  Private
+exports.getUserStats = async (req, res, next) => {
+	try {
+		const Thread = require("../models/Thread");
+		const Message = require("../models/Message");
+
+		const [totalThreads, totalPosts, totalMessages] = await Promise.all([
+			Thread.countDocuments({author: req.user.id, isDeleted: false}),
+			Thread.aggregate([
+				{$match: {"replies.author": req.user.id}},
+				{$unwind: "$replies"},
+				{$match: {"replies.author": req.user.id}},
+				{$count: "total"},
+			]),
+			Message.countDocuments({sender: req.user.id}),
+		]);
+
+		res.status(200).json({
+			success: true,
+			data: {
+				totalThreads,
+				totalPosts: totalPosts[0]?.total || 0,
+				totalMessages,
+				reputation: req.user.statistics.reputation,
+			},
+		});
+	} catch (error) {
+		next(error);
+	}
+};
+
+// @desc    Logout user / clear cookie
+// @route   POST /api/auth/logout
+// @access  Public
+exports.logout = async (req, res, next) => {
+	try {
+		// Clear the cookie by setting it to expire in 10 seconds
+		res.cookie("token", "none", {
+			expires: new Date(Date.now() + 10 * 1000),
+			httpOnly: true,
+		});
+
+		res.status(200).json({
+			success: true,
+			message: "Logged out successfully",
+			data: {},
+		});
+	} catch (error) {
+		next(error);
+	}
 };

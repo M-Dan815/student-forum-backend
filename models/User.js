@@ -28,12 +28,77 @@ const UserSchema = new mongoose.Schema({
 	},
 	role: {
 		type: String,
-		enum: ["admin", "user"],
+		enum: ["admin", "moderator", "user"],
 		default: "user",
 	},
 	isActive: {
 		type: Boolean,
 		default: true,
+	},
+	// Forum-specific fields
+	avatar: {
+		type: String,
+		default: null,
+	},
+	status: {
+		type: String,
+		enum: ["active", "warned", "suspended", "banned"],
+		default: "active",
+	},
+	warnings: [
+		{
+			reason: String,
+			issuedBy: {
+				type: mongoose.Schema.Types.ObjectId,
+				ref: "User",
+			},
+			date: {
+				type: Date,
+				default: Date.now,
+			},
+		},
+	],
+	suspendedUntil: Date,
+	suspensionReason: String,
+	bannedAt: Date,
+	banReason: String,
+	blockedUsers: [
+		{
+			type: mongoose.Schema.Types.ObjectId,
+			ref: "User",
+		},
+	],
+	notificationPreferences: {
+		email: {
+			messages: {type: Boolean, default: true},
+			mentions: {type: Boolean, default: true},
+			replies: {type: Boolean, default: true},
+		},
+		push: {
+			messages: {type: Boolean, default: true},
+			mentions: {type: Boolean, default: true},
+			replies: {type: Boolean, default: true},
+		},
+	},
+	lastActive: {
+		type: Date,
+		default: Date.now,
+	},
+	bio: {
+		type: String,
+		maxlength: 500,
+	},
+	location: String,
+	website: String,
+	socialLinks: {
+		twitter: String,
+		github: String,
+		linkedin: String,
+	},
+	statistics: {
+		totalPosts: {type: Number, default: 0},
+		totalThreads: {type: Number, default: 0},
+		reputation: {type: Number, default: 0},
 	},
 	createdAt: {
 		type: Date,
@@ -60,6 +125,15 @@ UserSchema.methods.getSignedJwtToken = function () {
 // Match user entered password to hashed password in database
 UserSchema.methods.matchPassword = async function (enteredPassword) {
 	return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Check if user is active (considering new status field)
+UserSchema.methods.isUserActive = function () {
+	if (!this.isActive) return false;
+	if (this.status === "banned") return false;
+	if (this.status === "suspended" && this.suspendedUntil > new Date())
+		return false;
+	return true;
 };
 
 module.exports = mongoose.model("User", UserSchema);

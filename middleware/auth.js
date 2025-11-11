@@ -11,9 +11,10 @@ exports.protect = async (req, res, next) => {
 		req.headers.authorization.startsWith("Bearer")
 	) {
 		token = req.headers.authorization.split(" ")[1];
+	} else if (req.cookies.token) {
+		token = req.cookies.token;
 	}
 
-	// Make sure token exists
 	if (!token) {
 		return res.status(401).json({
 			success: false,
@@ -34,15 +35,30 @@ exports.protect = async (req, res, next) => {
 			});
 		}
 
-		if (!req.user.isActive) {
-			return res.status(401).json({
+		// Check if user is active
+		if (!req.user.isUserActive()) {
+			let message = "Account is not active";
+
+			if (req.user.status === "banned") {
+				message = `Account has been banned. Reason: ${req.user.banReason}`;
+			} else if (req.user.status === "suspended") {
+				message = `Account is suspended until ${req.user.suspendedUntil}. Reason: ${req.user.suspensionReason}`;
+			} else if (!req.user.isActive) {
+				message = "Account is deactivated";
+			}
+
+			return res.status(403).json({
 				success: false,
-				message: "User account is deactivated",
+				message,
 			});
 		}
 
+		// Update last active
+		req.user.lastActive = new Date();
+		await req.user.save();
+
 		next();
-	} catch (err) {
+	} catch (error) {
 		return res.status(401).json({
 			success: false,
 			message: "Not authorized to access this route",

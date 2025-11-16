@@ -11,6 +11,7 @@ const config = require("./config/config");
 const errorHandler = require("./middleware/errorHandler");
 const connectDB = require("./config/database");
 const socketHandler = require("./socket/socketHandler");
+const reminderService = require("./services/reminderService");
 
 // Route files
 const authRoutes = require("./routes/auth");
@@ -72,7 +73,15 @@ app.use("/api/messages", require("./routes/message.routes"));
 app.use("/api/admin", require("./routes/admin.routes"));
 app.use("/api/notifications", require("./routes/notification.routes"));
 app.use("/api/users", require("./routes/user.routes"));
+app.use("/api/profile", require("./routes/profile.routes"));
+app.use("/api/tracker", require("./routes/tracker.routes"));
 
+// if (config.upload.method === "local") {
+// 	const fs = require("fs");
+// 	if (!fs.existsSync("uploads")) {
+// 		fs.mkdirSync("uploads");
+// 	}
+// }
 // Socket.io handler - Initialize socket handlers
 socketHandler(io);
 
@@ -105,6 +114,7 @@ const PORT = config.port || 5000;
 // Use httpServer.listen instead of app.listen
 const server = httpServer.listen(PORT, () => {
 	console.log(`Server running in ${config.env} mode on port ${PORT}`);
+	reminderService.start();
 });
 
 // Handle unhandled promise rejections

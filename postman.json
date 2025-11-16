@@ -1,0 +1,78 @@
+{
+	"id": "tracker-env",
+	"name": "Application Tracker Environment",
+	"values": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5000/api",
+			"enabled": true,
+			"type": "default"
+		},
+		{
+			"key": "authToken",
+			"value": "",
+			"enabled": true,
+			"type": "secret"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"enabled": true
+		},
+		{
+			"key": "userEmail",
+			"value": "",
+			"enabled": true
+		},
+		{
+			"key": "trackerId",
+			"value": "",
+			"enabled": true
+		},
+		{
+			"key": "appliedTrackerId",
+			"value": "",
+			"enabled": true
+		},
+		{
+			"key": "platformApplicationId",
+			"value": "",
+			"enabled": true
+		},
+		{
+			"key": "platformTrackerId",
+			"value": "",
+			"enabled": true
+		},
+		{
+			"key": "testCompany",
+			"value": "",
+			"enabled": true
+		},
+		{
+			"key": "testTitle",
+			"value": "",
+			"enabled": true
+		},
+		{
+			"key": "testType",
+			"value": "",
+			"enabled": true
+		},
+		{
+			"key": "reminderDate",
+			"value": "",
+			"enabled": true
+		},
+		{
+			"key": "calendarStartDate",
+			"value": "",
+			"enabled": true
+		},
+		{
+			"key": "calendarEndDate",
+			"value": "",
+			"enabled": true
+		}
+	]
+}

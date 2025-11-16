@@ -26,4 +26,22 @@ module.exports = {
 		origin: process.env.CLIENT_URL || "http://localhost:3000",
 		credentials: true,
 	},
+	cloudinary: {
+		cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+		apiKey: process.env.CLOUDINARY_API_KEY,
+		apiSecret: process.env.CLOUDINARY_API_SECRET, // Changed from api_secret to apiSecret
+	},
+	email: {
+		host: process.env.EMAIL_HOST || "smtp.gmail.com",
+		port: process.env.EMAIL_PORT || 587,
+		secure: process.env.EMAIL_SECURE === "true", // Convert string to boolean
+		user: process.env.EMAIL_USER,
+		pass: process.env.EMAIL_PASS,
+		from: process.env.EMAIL_FROM || process.env.EMAIL_USER, // Added missing property
+		fromName: process.env.EMAIL_FROM_NAME || "Student Forum", // Added missing property
+	},
+	client: {
+		// Added missing client configuration
+		url: process.env.CLIENT_URL || "http://localhost:3000",
+	},
 };

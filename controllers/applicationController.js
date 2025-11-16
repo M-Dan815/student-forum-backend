@@ -1,6 +1,6 @@
 const Application = require("../models/Application");
 const Job = require("../models/Job");
-
+const Tracker = require("../models/Tracker");
 // @desc    Submit job application
 // @route   POST /api/applications
 // @access  Public
@@ -53,16 +53,82 @@ exports.submitApplication = async (req, res, next) => {
 		job.applicationCount += 1;
 		await job.save();
 
+		// AUTO-ADD TO TRACKER if user is logged in
+		if (req.user) {
+			try {
+				// Check if already tracking (edge case)
+				const existingTracker = await Tracker.findOne({
+					user: req.user.id,
+					platformApplication: application._id,
+				});
+
+				if (!existingTracker) {
+					// Create tracker entry automatically
+					await Tracker.create({
+						user: req.user.id,
+						platformApplication: application._id,
+						company: {
+							name: job.company,
+							location: job.location,
+							website: job.companyWebsite,
+						},
+						job: {
+							title: job.title,
+							description: job.description,
+							type: job.jobType,
+							location: job.location,
+							remote: job.remote || "On-site",
+							salary: job.salary
+								? {
+										min: job.salary.min,
+										max: job.salary.max,
+										currency: job.salary.currency || "USD",
+										period: job.salary.period || "yearly",
+								  }
+								: undefined,
+						},
+						status: "applied",
+						dates: {
+							applied: new Date(),
+							deadline: job.applicationDeadline,
+						},
+						documents: {
+							resume: {
+								url: req.body.resumeUrl,
+								uploadedAt: new Date(),
+							},
+							coverLetter: req.body.coverLetter
+								? {
+										url: req.body.coverLetter,
+										uploadedAt: new Date(),
+								  }
+								: undefined,
+							portfolio: req.body.portfolioUrl,
+						},
+						metadata: {
+							source: "Platform",
+						},
+						notes: {
+							general: `Applied through platform on ${new Date().toLocaleDateString()}`,
+						},
+					});
+				}
+			} catch (trackerError) {
+				// Don't fail the application if tracker fails
+				console.error("Failed to auto-create tracker:", trackerError);
+			}
+		}
+
 		res.status(201).json({
 			success: true,
 			message: "Application submitted successfully",
 			data: application,
+			trackerAdded: !!req.user, // Indicates if it was added to tracker
 		});
 	} catch (error) {
 		next(error);
 	}
 };
-
 // @desc    Get all applications (Admin)
 // @route   GET /api/applications
 // @access  Private/Admin
@@ -172,8 +238,56 @@ exports.updateApplicationStatus = async (req, res, next) => {
 			});
 		}
 
+		const oldStatus = application.status;
 		application.status = status;
 		await application.save();
+
+		// SYNC WITH TRACKER - Update the tracker status too
+		try {
+			const tracker = await Tracker.findOne({
+				platformApplication: application._id,
+			});
+
+			if (tracker) {
+				// Map platform status to tracker status
+				const statusMap = {
+					pending: "applied",
+					reviewing: "applied",
+					shortlisted: "interview_scheduled",
+					rejected: "rejected",
+					accepted: "offer_received",
+				};
+
+				const newTrackerStatus = statusMap[status] || tracker.status;
+
+				if (newTrackerStatus !== tracker.status) {
+					tracker.status = newTrackerStatus;
+					tracker.statusHistory.push({
+						status: newTrackerStatus,
+						date: new Date(),
+						notes: `Status updated by employer: ${oldStatus} → ${status}`,
+					});
+					await tracker.save();
+
+					// Optionally notify the student
+					const Notification = require("../models/Notification");
+					await Notification.create({
+						user: tracker.user,
+						type: "application_update",
+						message: `Your application status for ${application.job.title} has been updated to ${status}`,
+						link: `/tracker/${tracker._id}`,
+						metadata: {
+							applicationId: application._id.toString(),
+							trackerId: tracker._id.toString(),
+							newStatus: status,
+						},
+					});
+				}
+			}
+		} catch (syncError) {
+			console.error("Failed to sync with tracker:", syncError);
+			// Don't fail the main operation
+		}
 
 		res.status(200).json({
 			success: true,

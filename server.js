@@ -39,7 +39,14 @@ app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 
 // Enable CORS
-app.use(cors(config.cors));
+app.use(
+	cors({
+		origin: "http://localhost:5173",
+		credentials: true,
+		methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+		allowedHeaders: ["Content-Type", "Authorization"],
+	})
+);
 
 // Set security headers
 app.use(helmet());

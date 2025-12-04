@@ -11,6 +11,7 @@ exports.protect = async (req, res, next) => {
 		req.headers.authorization.startsWith("Bearer")
 	) {
 		token = req.headers.authorization.split(" ")[1];
+		console.log(token);
 	} else if (req.cookies.token) {
 		token = req.cookies.token;
 	}
@@ -59,6 +60,7 @@ exports.protect = async (req, res, next) => {
 
 		next();
 	} catch (error) {
+		console.log(error);
 		return res.status(401).json({
 			success: false,
 			message: "Not authorized to access this route",

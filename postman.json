@@ -1,78 +1,134 @@
 {
-	"id": "tracker-env",
-	"name": "Application Tracker Environment",
-	"values": [
+	"info": {
+		"name": "CV Review API",
+		"description": "AI-powered CV review service using Gemini",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
 		{
-			"key": "baseUrl",
-			"value": "http://localhost:5000/api",
-			"enabled": true,
-			"type": "default"
+			"name": "Analyze CV",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "cv",
+							"type": "file",
+							"src": "path/to/cv.pdf"
+						},
+						{
+							"key": "targetRole",
+							"value": "Software Engineer",
+							"type": "text"
+						},
+						{
+							"key": "experienceLevel",
+							"value": "Junior",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{baseUrl}}/cv-review/analyze",
+					"host": ["{{baseUrl}}"],
+					"path": ["cv-review", "analyze"]
+				}
+			}
 		},
 		{
-			"key": "authToken",
-			"value": "",
-			"enabled": true,
-			"type": "secret"
+			"name": "Get Review History",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/cv-review/history?page=1&limit=10",
+					"host": ["{{baseUrl}}"],
+					"path": ["cv-review", "history"],
+					"query": [
+						{
+							"key": "page",
+							"value": "1"
+						},
+						{
+							"key": "limit",
+							"value": "10"
+						}
+					]
+				}
+			}
 		},
 		{
-			"key": "userId",
-			"value": "",
-			"enabled": true
+			"name": "Get Single Review",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/cv-review/{{reviewId}}",
+					"host": ["{{baseUrl}}"],
+					"path": ["cv-review", "{{reviewId}}"]
+				}
+			}
 		},
 		{
-			"key": "userEmail",
-			"value": "",
-			"enabled": true
+			"name": "Compare Versions",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/cv-review/compare?currentId={{currentReviewId}}&previousId={{previousReviewId}}",
+					"host": ["{{baseUrl}}"],
+					"path": ["cv-review", "compare"],
+					"query": [
+						{
+							"key": "currentId",
+							"value": "{{currentReviewId}}"
+						},
+						{
+							"key": "previousId",
+							"value": "{{previousReviewId}}"
+						}
+					]
+				}
+			}
 		},
 		{
-			"key": "trackerId",
-			"value": "",
-			"enabled": true
-		},
-		{
-			"key": "appliedTrackerId",
-			"value": "",
-			"enabled": true
-		},
-		{
-			"key": "platformApplicationId",
-			"value": "",
-			"enabled": true
-		},
-		{
-			"key": "platformTrackerId",
-			"value": "",
-			"enabled": true
-		},
-		{
-			"key": "testCompany",
-			"value": "",
-			"enabled": true
-		},
-		{
-			"key": "testTitle",
-			"value": "",
-			"enabled": true
-		},
-		{
-			"key": "testType",
-			"value": "",
-			"enabled": true
-		},
-		{
-			"key": "reminderDate",
-			"value": "",
-			"enabled": true
-		},
-		{
-			"key": "calendarStartDate",
-			"value": "",
-			"enabled": true
-		},
-		{
-			"key": "calendarEndDate",
-			"value": "",
-			"enabled": true
+			"name": "Get Stats",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/cv-review/stats",
+					"host": ["{{baseUrl}}"],
+					"path": ["cv-review", "stats"]
+				}
+			}
 		}
 	]
 }

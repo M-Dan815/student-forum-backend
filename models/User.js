@@ -43,7 +43,15 @@ const UserSchema = new mongoose.Schema({
 		university: {
 			name: {
 				type: String,
-				required: [true, "Please add university name"],
+				required: [
+					function () {
+						return this.role === "student";
+					},
+					"Please add university name",
+				],
+				default: function () {
+					return this.role !== "student" ? "N/A" : undefined;
+				},
 			},
 			email: {
 				type: String,
@@ -69,12 +77,30 @@ const UserSchema = new mongoose.Schema({
 				"Graduate",
 				"PhD",
 				"Alumni",
+				"N/A",
+				"",
 			],
-			required: [true, "Please select year of study"],
+			required: [
+				function () {
+					return this.role === "student";
+				},
+				"Please select year of study",
+			],
+			default: function () {
+				return this.role !== "student" ? "N/A" : undefined;
+			},
 		},
 		major: {
 			type: String,
-			required: [true, "Please add your major/course"],
+			required: [
+				function () {
+					return this.role === "student";
+				},
+				"Please add your major/course",
+			],
+			default: function () {
+				return this.role !== "student" ? "N/A" : undefined;
+			},
 		},
 		minor: String,
 		expectedGraduation: {
@@ -233,12 +259,15 @@ const UserSchema = new mongoose.Schema({
 	// Account Status
 	isActive: {
 		type: Boolean,
-		default: false, // Will be true after email verification
+		default: true,
 	},
 	status: {
 		type: String,
 		enum: ["active", "warned", "suspended", "banned", "pending"],
-		default: "pending",
+		default: function () {
+			// Admins are active by default, students are pending until email verification
+			return this.role === "admin" ? "active" : "pending";
+		},
 	},
 	profileCompleted: {
 		type: Boolean,
@@ -246,7 +275,7 @@ const UserSchema = new mongoose.Schema({
 	},
 	profileCompletedAt: Date,
 
-	// Forum-related fields (from previous module)
+	// Forum-related fields
 	avatar: String,
 	warnings: [
 		{
@@ -261,6 +290,10 @@ const UserSchema = new mongoose.Schema({
 			},
 		},
 	],
+	suspendedUntil: Date,
+	suspensionReason: String,
+	bannedAt: Date,
+	banReason: String,
 	blockedUsers: [
 		{
 			type: mongoose.Schema.Types.ObjectId,
@@ -319,8 +352,51 @@ const UserSchema = new mongoose.Schema({
 	updatedAt: Date,
 });
 
-// Calculate profile completion percentage
+// Pre-validation hook to handle non-student users
+UserSchema.pre("validate", function (next) {
+	// Skip profile validation for non-students
+	if (this.role === "admin" || this.role === "moderator") {
+		// Initialize profile if it doesn't exist
+		if (!this.profile) {
+			this.profile = {};
+		}
+
+		// Set default values for required student fields
+		if (!this.profile.university) {
+			this.profile.university = {name: "N/A"};
+		} else if (!this.profile.university.name) {
+			this.profile.university.name = "N/A";
+		}
+
+		if (!this.profile.yearOfStudy) {
+			this.profile.yearOfStudy = "N/A";
+		}
+
+		if (!this.profile.major) {
+			this.profile.major = "N/A";
+		}
+
+		// Set profile completion to 100% for admins
+		this.profile.completionPercentage = 100;
+		this.profileCompleted = true;
+
+		// Admins are automatically verified
+		if (this.role === "admin") {
+			this.isEmailVerified = true;
+			this.status = "active";
+		}
+	}
+
+	next();
+});
+
+// Calculate profile completion percentage (only for students)
 UserSchema.methods.calculateProfileCompletion = function () {
+	// Skip calculation for non-students
+	if (this.role !== "student") {
+		return 100;
+	}
+
 	const requiredFields = [
 		"name",
 		"email",
@@ -405,28 +481,6 @@ UserSchema.methods.getResetPasswordToken = function () {
 	return resetToken;
 };
 
-// Encrypt password using bcrypt
-UserSchema.pre("save", async function (next) {
-	// Update the updatedAt timestamp
-	this.updatedAt = Date.now();
-
-	// Update profile completion percentage
-	if (this.isModified("profile")) {
-		this.profile.completionPercentage = this.calculateProfileCompletion();
-		if (this.profile.completionPercentage === 100 && !this.profileCompleted) {
-			this.profileCompleted = true;
-			this.profileCompletedAt = Date.now();
-		}
-	}
-
-	if (!this.isModified("password")) {
-		next();
-	}
-
-	const salt = await bcrypt.genSalt(10);
-	this.password = await bcrypt.hash(this.password, salt);
-});
-
 // Sign JWT and return
 UserSchema.methods.getSignedJwtToken = function () {
 	return jwt.sign({id: this._id, role: this.role}, config.jwt.secret, {
@@ -442,12 +496,63 @@ UserSchema.methods.matchPassword = async function (enteredPassword) {
 // Check if user is active (considering new status field)
 UserSchema.methods.isUserActive = function () {
 	if (!this.isActive) return false;
-	if (!this.isEmailVerified) return false;
+
+	// Admins don't need email verification
+	if (this.role === "admin") return true;
+
+	// Students need email verification
+	if (!this.isEmailVerified && this.role === "student") return false;
+
 	if (this.status === "banned") return false;
 	if (this.status === "suspended" && this.suspendedUntil > new Date())
 		return false;
+
 	return true;
 };
+
+// Encrypt password using bcrypt
+UserSchema.pre("save", async function (next) {
+	// Update the updatedAt timestamp
+	this.updatedAt = Date.now();
+
+	// Update profile completion percentage for students
+	if (this.isModified("profile") && this.role === "student") {
+		this.profile.completionPercentage = this.calculateProfileCompletion();
+		if (this.profile.completionPercentage === 100 && !this.profileCompleted) {
+			this.profileCompleted = true;
+			this.profileCompletedAt = Date.now();
+		}
+	}
+
+	// Only hash password if it's modified
+	if (!this.isModified("password")) {
+		return next();
+	}
+
+	const salt = await bcrypt.genSalt(10);
+	this.password = await bcrypt.hash(this.password, salt);
+	next();
+});
+
+// Virtual for days until deadline
+UserSchema.virtual("daysUntilDeadline").get(function () {
+	if (!this.dates?.deadline) return null;
+	const now = new Date();
+	const deadline = new Date(this.dates.deadline);
+	const diffTime = deadline - now;
+	const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+	return diffDays;
+});
+
+// Virtual for application age
+UserSchema.virtual("applicationAge").get(function () {
+	if (!this.dates?.applied) return null;
+	const now = new Date();
+	const applied = new Date(this.dates.applied);
+	const diffTime = now - applied;
+	const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+	return diffDays;
+});
 
 // Index for search
 UserSchema.index({
@@ -456,5 +561,10 @@ UserSchema.index({
 	"profile.major": "text",
 	"profile.bio": "text",
 });
+
+// Additional indexes for performance
+UserSchema.index({email: 1});
+UserSchema.index({role: 1, status: 1});
+UserSchema.index({"profile.university.name": 1, "profile.yearOfStudy": 1});
 
 module.exports = mongoose.model("User", UserSchema);

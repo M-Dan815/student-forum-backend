@@ -64,6 +64,7 @@ if (config.env === "development") {
 app.use(compression());
 
 // Mount routers
+app.use("/api/cv-review", require("./routes/cvReview.routes"));
 app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/applications", applicationRoutes);
@@ -75,6 +76,15 @@ app.use("/api/notifications", require("./routes/notification.routes"));
 app.use("/api/users", require("./routes/user.routes"));
 app.use("/api/profile", require("./routes/profile.routes"));
 app.use("/api/tracker", require("./routes/tracker.routes"));
+// Add CV review routes
+
+// Create CV storage directory
+const fs = require("fs");
+const cvStoragePath = process.env.CV_STORAGE_PATH || "./uploads/cvs";
+if (!fs.existsSync(cvStoragePath)) {
+	fs.mkdirSync(cvStoragePath, {recursive: true});
+	fs.mkdirSync(`${cvStoragePath}/encrypted`, {recursive: true});
+}
 
 // if (config.upload.method === "local") {
 // 	const fs = require("fs");

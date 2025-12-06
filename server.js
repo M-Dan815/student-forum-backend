@@ -56,12 +56,14 @@ app.use(helmet());
 
 // Sanitize data
 app.use(mongoSanitize());
+app.set("trust proxy", 1); // 1 means trust the first proxy
+
 
 // Rate limiting
 const limiter = rateLimit({
-	windowMs: 10 * 60 * 1000, // 10 minutes
-	max: 100,
-	message: "Too many requests from this IP, please try again later",
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 100,
+  message: "Too many requests from this IP, please try again later",
 });
 app.use("/api/", limiter);
 

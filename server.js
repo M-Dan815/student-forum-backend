@@ -41,7 +41,10 @@ app.use(express.urlencoded({extended: true}));
 // Enable CORS
 app.use(
 	cors({
-		origin: "http://localhost:5173",
+		origin: [
+			"http://localhost:5173",
+			"https://pitch-deck-seven-mu.vercel.app/",
+		],
 		credentials: true,
 		methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
 		allowedHeaders: ["Content-Type", "Authorization"],
